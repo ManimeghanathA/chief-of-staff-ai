@@ -1,5 +1,6 @@
 from langgraph.graph import StateGraph, END
-from langchain_huggingface import HuggingFacePipeline
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
 from app.agent.schemas import AgentState
 from app.agent.memory import load_user_memory, save_user_memory
 
@@ -7,10 +8,9 @@ import json
 import re
 import os
 
-llm = HuggingFacePipeline.from_model_id(
-    model_id="google/flan-t5-base",
-    task="text2text-generation",
-    model_kwargs={"temperature": 0}
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0
 )
 
 
@@ -32,13 +32,17 @@ def chat_node(state: AgentState, config):
         f"User memory: {state.memory}"
     )
 
-    # HuggingFace endpoint expects string input
-    full_prompt = f"{system_prompt}\n\nUser: {state.message}\nAssistant:"
-    
-    response = llm.invoke(full_prompt)
+    try:
+        response = llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=state.message)
+        ])
+        state.response = response.content
+    except Exception:
+        state.response = "I'm temporarily unavailable. Please try again."
 
-    state.response = response
     return state
+
 
 def extract_memory_node(state: AgentState, config):
     db = config.get("configurable", {}).get("db")
@@ -54,10 +58,12 @@ def extract_memory_node(state: AgentState, config):
         f"Message: {state.message}"
     )
 
-    result = llm.invoke(extract_prompt)
+    result = llm.invoke([
+        HumanMessage(content=extract_prompt)
+    ])
 
     try:
-        content = result.strip()
+        content = result.content.strip()
         # Try to isolate JSON
         start = content.find("[")
         end = content.rfind("]") + 1

@@ -16,3 +16,8 @@ hf_cache/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Databases
+*.db
+backend/*.db
+

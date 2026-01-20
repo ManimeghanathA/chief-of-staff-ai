@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+chief_of_staff.db
+
+.env
+
+.git
+.gitignore

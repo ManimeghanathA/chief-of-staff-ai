@@ -1,16 +1,18 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+
 from app.db.database import SessionLocal
 from app.agent.graph import build_graph
 from app.agent.schemas import AgentState
+from app.auth.dependencies import get_current_user
+from app.db.models import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 class ChatRequest(BaseModel):
-    user_id: int
-    message: str
+    message: str  # ← ONLY MESSAGE
 
 
 def get_db():
@@ -22,12 +24,16 @@ def get_db():
 
 
 @router.post("/")
-def chat(payload: ChatRequest, db: Session = Depends(get_db)):
+def chat(
+    payload: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     graph = build_graph()
 
     state = AgentState(
-        user_id=payload.user_id,
-        message=payload.message
+        user_id=str(current_user.id),
+        message=payload.message,
     )
 
     result = graph.invoke(
@@ -35,7 +41,7 @@ def chat(payload: ChatRequest, db: Session = Depends(get_db)):
         config={"configurable": {"db": db}}
     )
 
-    # ✅ SAFE handling
+    # ✅ SAFE handling for LangGraph return type
     if isinstance(result, dict):
         response_text = result.get("response", "")
     else:

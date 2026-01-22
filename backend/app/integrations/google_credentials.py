@@ -2,6 +2,9 @@ from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from sqlalchemy.orm import Session
+from google.auth.exceptions import RefreshError
+from fastapi import HTTPException
+
 
 from app.db.models import GoogleCredential
 from app.core.config import (
@@ -42,13 +45,18 @@ def get_valid_google_credentials(
 
     # 3. Check expiry and refresh if needed
     if credentials.expired:
-        credentials.refresh(Request())
+        try:
+            credentials.refresh(Request())
+        except RefreshError:
+            raise HTTPException(
+                status_code=401,
+                detail="Google access expired. Please reconnect your Google account."
+            )
 
-        # 4. Save updated token back to DB
         creds_row.access_token = credentials.token
         creds_row.expires_at = credentials.expiry
         creds_row.updated_at = datetime.utcnow()
-
         db.commit()
+
 
     return credentials

@@ -3,6 +3,7 @@ from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
 
 from app.integrations.google_credentials import get_valid_google_credentials
+import socket
 
 
 def fetch_upcoming_events(
@@ -23,19 +24,30 @@ def fetch_upcoming_events(
         ]
     )
 
-    service = build("calendar", "v3", credentials=creds)
+    # Reduce "hang forever" behavior on slow networks.
+    # This affects underlying httplib2 socket connections used by googleapiclient.
+    # Set a reasonable timeout (15 seconds should be enough for most cases)
+    original_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(15)
 
-    now = datetime.utcnow().isoformat() + "Z"
-    one_week = (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z"
+    try:
+        # cache_discovery=False avoids writing discovery cache files in some environments.
+        service = build("calendar", "v3", credentials=creds, cache_discovery=False)
 
-    events_result = service.events().list(
-        calendarId="primary",
-        timeMin=now,
-        timeMax=one_week,
-        maxResults=max_results,
-        singleEvents=True,
-        orderBy="startTime"
-    ).execute()
+        now = datetime.utcnow().isoformat() + "Z"
+        one_week = (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z"
+
+        events_result = service.events().list(
+            calendarId="primary",
+            timeMin=now,
+            timeMax=one_week,
+            maxResults=max_results,
+            singleEvents=True,
+            orderBy="startTime"
+        ).execute()
+    finally:
+        # Restore original timeout setting
+        socket.setdefaulttimeout(original_timeout)
 
     events = events_result.get("items", [])
 

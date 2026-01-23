@@ -27,14 +27,26 @@ def get_current_user(
         user_id: str | None = payload.get("user_id")
 
         if user_id is None:
+            print(f"❌ Token missing user_id in payload: {payload}")
             raise HTTPException(status_code=401, detail="Invalid token")
 
-    except JWTError:
+    except JWTError as e:
+        error_msg = str(e).lower()
+        if "expired" in error_msg or "exp" in error_msg:
+            print(f"❌ Token expired: {e}")
+            raise HTTPException(
+                status_code=401, 
+                detail="Token expired. Please log in again.",
+                headers={"WWW-Authenticate": "Bearer"}
+            )
+        print(f"❌ JWT decode error: {e}")
+        print(f"❌ Token (first 20 chars): {token[:20] if token else 'None'}...")
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user = db.query(User).filter(User.id == user_id).first()
 
     if not user:
+        print(f"❌ User not found for user_id: {user_id}")
         raise HTTPException(status_code=401, detail="User not found")
 
     return user

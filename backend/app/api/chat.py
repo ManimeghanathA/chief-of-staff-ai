@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -29,23 +29,40 @@ def chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    graph = build_graph()
+    try:
+        print(f"✅ Chat request from user: {current_user.email} (ID: {current_user.id})")
+        graph = build_graph()
 
-    state = AgentState(
-        user_id=str(current_user.id),
-        message=payload.message,
-    )
+        state = AgentState(
+            user_id=str(current_user.id),
+            message=payload.message,
+        )
 
-    result = graph.invoke(
-        state,
-        config={"configurable": {"db": db}}
-    )
+        result = graph.invoke(
+            state,
+            config={"configurable": {"db": db}}
+        )
 
-    # ✅ SAFE handling for LangGraph return type
-    if isinstance(result, dict):
-        response_text = result.get("response", "")
-    else:
-        response_text = result.response
+        # ✅ SAFE handling for LangGraph return type
+        if isinstance(result, dict):
+            response_text = result.get("response", "")
+        else:
+            response_text = result.response
 
-    return {"response": response_text}
+        return {"response": response_text}
+    except Exception as e:
+        print(f"❌ Chat error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+
+@router.get("/test-auth")
+def test_auth(current_user: User = Depends(get_current_user)):
+    """Test endpoint to verify authentication is working"""
+    return {
+        "status": "authenticated",
+        "user_id": str(current_user.id),
+        "email": current_user.email
+    }
 

@@ -21,3 +21,16 @@ Thumbs.db
 *.db
 backend/*.db
 
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfvars
+!terraform.tfvars.example
+
+all_project_code.txt
+codes.py
+test_memory.py
+.env

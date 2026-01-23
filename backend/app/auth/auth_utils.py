@@ -4,7 +4,8 @@ from passlib.context import CryptContext
 
 SECRET_KEY = "CHANGE_THIS_LATER"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+# Increased to 24 hours for development (change to 60 for production)
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 # IMPORTANT: use PBKDF2 instead of bcrypt (Python 3.12 safe)
 pwd_context = CryptContext(
